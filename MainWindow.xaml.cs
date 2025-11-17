@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Linq;
 using SWF = System.Windows.Forms;
 
 namespace HPD_getter
@@ -32,19 +33,18 @@ namespace HPD_getter
 
             public override string ToString() => DisplayName;
         }
+
         private MonitorItem _selectedMonitor;
         private bool _monitorPresent;
+
+        private DispatcherTimer _ddcTimer;
+        private IntPtr _hPhysicalMonitor = IntPtr.Zero;
+        private bool _ddcResponsive;
+
 
         public MainWindow()
         {
             InitializeComponent();
-            Loaded += (_, __) =>
-            {
-                Append("Logger started.");
-                _timer.Interval = TimeSpan.FromSeconds(1);
-                _timer.Tick += (_, ____) => CheckOnce();
-                _timer.Start();
-            };
         }
         private void CheckOnce()
         {
@@ -77,6 +77,8 @@ namespace HPD_getter
 
         private void RefreshMonitorList()
         {
+            var selectedBefore = _selectedMonitor?.DeviceName;
+
             MonitorCombo.Items.Clear();
 
             foreach (var screen in SWF.Screen.AllScreens)
@@ -92,12 +94,23 @@ namespace HPD_getter
                 });
             }
 
-            // Auto-guess external: first non-primary screen
-            if (MonitorCombo.Items.Count > 0 && MonitorCombo.SelectedItem == null)
+            // Try keep previous selection
+            if (selectedBefore != null)
+            {
+                var existing = MonitorCombo.Items
+                    .Cast<MonitorItem>()
+                    .FirstOrDefault(i => i.DeviceName == selectedBefore);
+
+                if (existing != null)
+                    MonitorCombo.SelectedItem = existing;
+            }
+
+            // If nothing selected, auto-guess a non-primary (external)
+            if (MonitorCombo.SelectedItem == null && MonitorCombo.Items.Count > 0)
             {
                 var screens = SWF.Screen.AllScreens;
-
                 var nonPrimary = screens.FirstOrDefault(s => !s.Primary);
+
                 if (nonPrimary != null)
                 {
                     var item = MonitorCombo.Items
@@ -108,7 +121,6 @@ namespace HPD_getter
                 }
                 else
                 {
-                    // Only one screen (probably laptop) → select it so UI isn’t empty
                     MonitorCombo.SelectedIndex = 0;
                 }
             }
@@ -116,12 +128,6 @@ namespace HPD_getter
             _selectedMonitor = MonitorCombo.SelectedItem as MonitorItem;
         }
 
-        private void MonitorCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _selectedMonitor = MonitorCombo.SelectedItem as MonitorItem;
-            _monitorPresent = false; // force a log on next check if state differs
-            CheckSelectedMonitorPresence();
-        }
 
         private void SystemEvents_DisplaySettingsChanged(object sender, EventArgs e)
         {
@@ -172,6 +178,32 @@ namespace HPD_getter
         private void LogBox_TextChanged(object sender, TextChangedEventArgs e)
         {
 
+        }
+
+        private void MonitorCombo_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedMonitor = MonitorCombo.SelectedItem as MonitorItem;
+            _monitorPresent = false;  // force log on next check
+            CheckSelectedMonitorPresence();
+            ReopenPhysicalMonitor();
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            RefreshMonitorList();
+
+            SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
+
+            // Poll DDC every 5 seconds
+            _ddcTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _ddcTimer.Tick += DdcTimer_Tick;
+            _ddcTimer.Start();
+
+            CheckSelectedMonitorPresence();
+            ReopenPhysicalMonitor();
         }
     }
 
