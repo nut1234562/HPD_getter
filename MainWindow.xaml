@@ -1,0 +1,22 @@
+﻿<Window x:Class="HPD_getter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HPD_getter"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="328" Width="490">
+    <Grid Margin="0,0,0,-6">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="9*"/>
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="LogBox" HorizontalAlignment="Left" Margin="48,0,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Center" Width="222" TextChanged="LogBox_TextChanged" Height="243" HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible" Grid.ColumnSpan="2">
+            <TextBox.Effect>
+                <DropShadowEffect/>
+            </TextBox.Effect>
+        </TextBox>
+        <ComboBox x:Name="MonitorCombo" Grid.Column="1" HorizontalAlignment="Left" Margin="277,114,0,0" VerticalAlignment="Top" Width="120"/>
+
+    </Grid>
+</Window>
